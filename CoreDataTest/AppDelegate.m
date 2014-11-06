@@ -7,7 +7,8 @@
 //
 
 #import "AppDelegate.h"
-
+#import "AFIncrementalStore.h"
+#import "AppDotNetIncrementalStore.h"
 @interface AppDelegate ()
 
 @end
@@ -52,6 +53,8 @@
 
 - (NSURL *)applicationDocumentsDirectory {
     // The directory the application uses to store the Core Data store file. This code uses a directory named "com.goumin.CoreDataTest" in the application's documents directory.
+
+    NSLog(@"applicationDocumentsDirectory success %@",[[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject]);
     return [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject];
 }
 
@@ -60,8 +63,10 @@
     if (_managedObjectModel != nil) {
         return _managedObjectModel;
     }
-    NSURL *modelURL = [[NSBundle mainBundle] URLForResource:@"CoreDataTest" withExtension:@"momd"];
+    NSURL *modelURL = [[NSBundle mainBundle] URLForResource:@"CoreDataTest" withExtension:@"mom"];
     _managedObjectModel = [[NSManagedObjectModel alloc] initWithContentsOfURL:modelURL];
+    NSLog(@"managedObjectModel success %@", _managedObjectModel);
+
     return _managedObjectModel;
 }
 
@@ -74,22 +79,37 @@
     // Create the coordinator and store
     
     _persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:[self managedObjectModel]];
+
+    AFIncrementalStore *incrementalStore = (AFIncrementalStore *)[_persistentStoreCoordinator addPersistentStoreWithType:[AppDotNetIncrementalStore type] configuration:nil URL:nil options:nil error:nil];
     NSURL *storeURL = [[self applicationDocumentsDirectory] URLByAppendingPathComponent:@"CoreDataTest.sqlite"];
+
+    NSDictionary *options = @{
+                              NSInferMappingModelAutomaticallyOption : @(YES),
+                              NSMigratePersistentStoresAutomaticallyOption: @(YES)
+                              };
     NSError *error = nil;
+
     NSString *failureReason = @"There was an error creating or loading the application's saved data.";
-    if (![_persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:nil error:&error]) {
-        // Report any error we got.
-        NSMutableDictionary *dict = [NSMutableDictionary dictionary];
-        dict[NSLocalizedDescriptionKey] = @"Failed to initialize the application's saved data";
-        dict[NSLocalizedFailureReasonErrorKey] = failureReason;
-        dict[NSUnderlyingErrorKey] = error;
-        error = [NSError errorWithDomain:@"YOUR_ERROR_DOMAIN" code:9999 userInfo:dict];
-        // Replace this with code to handle the error appropriately.
-        // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
+    if (![incrementalStore.backingPersistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:options error:&error]) {
         NSLog(@"Unresolved error %@, %@", error, [error userInfo]);
         abort();
     }
-    
+
+//    if (![_persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:nil error:&error]) {
+//        // Report any error we got.
+//        NSMutableDictionary *dict = [NSMutableDictionary dictionary];
+//        dict[NSLocalizedDescriptionKey] = @"Failed to initialize the application's saved data";
+//        dict[NSLocalizedFailureReasonErrorKey] = failureReason;
+//        dict[NSUnderlyingErrorKey] = error;
+//        error = [NSError errorWithDomain:@"YOUR_ERROR_DOMAIN" code:9999 userInfo:dict];
+//        // Replace this with code to handle the error appropriately.
+//        // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
+//        NSLog(@"Unresolved error %@, %@", error, [error userInfo]);
+//        abort();
+//    }
+//    ;
+//    NSLog(@"persistentStoreCoordinator success %@",_persistentStoreCoordinator);
+
     return _persistentStoreCoordinator;
 }
 
@@ -104,8 +124,11 @@
     if (!coordinator) {
         return nil;
     }
-    _managedObjectContext = [[NSManagedObjectContext alloc] init];
+    _managedObjectContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
     [_managedObjectContext setPersistentStoreCoordinator:coordinator];
+
+    NSLog(@"managedObjectContext success %@", _managedObjectContext);
+    
     return _managedObjectContext;
 }
 
